@@ -1,0 +1,434 @@
+---
+title: "410FinalProject"
+author: "Ross Bechtel"
+date: "5/3/2021"
+output:
+  pdf_document: default
+  html_document: default
+header-includes: \usepackage{setspace}\doublespacing
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Project Statement
+The question I will aim to answer in this project is “What linear relationships do
+oddsmakers use to create money line odds for NFL games?”.
+
+For those unfamiliar with sports betting and sports odds, money line odds are the odds used to represent the
+probability a team has to win a given game. They are strangely formatted but can be
+converted to an implied probability. The favorite to win the game has a negative statistic
+while the underdog has a positive statistic. If a team is listed as -250 to win a game, a
+bettor would have to risk \$250 to profit \$100. If a team is listed as +250 to win a game, a
+bettor would have to risk \$100 to profit \$250. In this scenario, the implied probability for
+the favorite is .7143 and the implied probability for the underdog is .2857. For favorites, the conversion takes place using the following formula:
+$$
+\frac{-(MLOdds)}{-(MLODDS) +100} = \frac{-(-250)}{-(-250) +100}  = \frac{250}{250 +100} = 250/350 = .7143
+$$
+For underdogs, the conversion takes place using a similar formula:
+$$
+\frac{100}{MLODDS + 100} = \frac{100}{250 + 100} = \frac{100}{350} = .2857
+$$
+One thing to note is that in a head to head matchup, the sum of the implied probabilities for two opposing sides
+will not always sum to 1. In most cases, they will sum to more than 1. This is because the oddsmakers and bookies (those 
+who make transactions with bettors) manipulate the odds so that they always win. In giving both sides better odds than they
+actually have, they guarantee a lower payout for gamblers and a profit for themselves.
+
+My interest in this question and this topic comes from my interest in the use of statistics in sports. Oddsmakers are
+the best in the world at predicting the outcome of sports events (if they weren’t, they
+would be out of business). To generate their odds, they use advanced models and
+algorithms that are a mystery to the general public. In this project, I hope to gain some
+insight into what variables are important to oddsmakers when generating their NFL
+odds.
+
+# Data Description
+The first dataset contains data from the 2020-2021 NFL season and the money line
+odds associated with each team for each game from that season. This
+dataset is important because it contains the ML odds and potential variables that could
+impact those odds. This data comes from
+https://www.sportsbookreviewsonline.com/scoresoddsarchives/nfl/nfloddsarchives.htm
+
+The second dataset consists of weekly data on each NFL team from the 2020-2021
+NFL season. It contains variables like quarterback rating for the team’s QB, the team's
+offensive yards per play, defensive yards per play, aturnover margin, point differential among others. All of these
+statistics are cumulative up to each game week. This dataset is important because it
+contains many variables that could impact ML odds. This data comes from
+https://www.pro-football-reference.com 's query tool.
+
+# Exploratory Data Analysis
+*Note:* Code including the reading of data, subsetting of data, and cleaning of data  is not included in this pdf out of reading convenience becasue it was over 150 lines and very repetitive. Please check rmd file for this code.
+```{r, warning=FALSE, message=FALSE, include=FALSE}
+library(tidyverse)
+library(readxl)
+library(ggplot2)
+library(leaps)
+
+# Odds data
+odds <- read_excel("/Users/rossbechtel/Downloads/nfl odds 2020-21.xlsx")
+# Name cleaning function
+nameFunc <- function(x) {
+  if(x=='Arizona')
+    return('ARI')
+  else if(x=='Atlanta')
+    return('ATL')
+  else if(x=='Baltimore')
+    return('BAL')
+  else if(x=='Buffalo')
+    return('BUF')
+  else if(x=='Carolina')
+    return('CAR')
+  else if(x=='Chicago')
+    return('CHI')
+  else if(x=='Cleveland')
+    return('CLE')
+  else if(x=='Cincinnati')
+    return('CIN')
+  else if(x=='Dallas')
+    return('DAL')
+  else if(x=='Denver')
+    return('DEN')
+  else if(x=='Detroit')
+    return('DET')
+  else if(x=='GreenBay')
+    return('GNB')
+  else if(x=='Houston')
+    return('HOU')
+  else if(x=='Indianapolis')
+    return('IND')
+  else if(x=='Jacksonville')
+    return('JAX')
+  else if(x=='Kansas' | x=='KansasCity' | x=='KCChiefs')
+    return('KAN')
+  else if(x=='LAChargers')
+    return('LAC')
+  else if(x=='LARams')
+    return('LAR')
+  else if(x=='LasVegas' | x=='LVRaiders')
+    return('LVR')
+  else if(x=='Miami')
+    return('MIA')
+  else if(x=='Minnesota')
+    return('MIN')
+  else if(x=='NewEngland')
+    return('NWE')
+  else if(x=='NewOrleans')
+    return('NOR')
+  else if(x=='NYGiants')
+    return('NYG')
+  else if(x=='NYJets')
+    return('NYJ')
+  else if(x=='Philadelphia')
+    return('PHI')
+  else if(x=='Pittsburgh')
+    return('PIT')
+  else if(x=='SanFrancisco')
+    return('SFO')
+  else if(x=='Seattle')
+    return('SEA')
+  else if(x=='Tampa' | x=='TampaBay')
+    return('TAM')
+  else if(x=='Tennessee')
+    return('TEN')
+  else if(x=='Washington' | x=='Washingtom')
+    return('WAS')
+}
+odds$Team <- sapply(odds$Team, nameFunc)
+# Week classifying function
+weekFunc <- function(x) {
+  if(x < 104)
+    return(17)
+  if(x < 250)
+    return(-1)
+  if(x < 915)
+    return(1)
+  if(x < 922)
+    return(2)
+  if(x < 929)
+    return(3)
+  if(x < 1006)
+    return(4)
+  if(x < 1014)
+    return(5)
+  if(x < 1020)
+    return(6)
+  if(x < 1027)
+    return(7)
+  if(x < 1103)
+    return(8)
+  if(x < 1110)
+    return(9)
+  if(x < 1117)
+    return(10)
+  if(x < 1124)
+    return(11)
+  if(x < 1203)
+    return(12)
+  if(x < 1209)
+    return(13)
+  if(x < 1215)
+    return(14)
+  if(x < 1222)
+    return(15)
+  if(x < 1229)
+    return(16)
+  return(-1)
+}
+odds$week <- sapply(odds$Date, weekFunc)
+# Team data by week
+week1 <- read_excel("/Users/rossbechtel/Desktop/week1.xlsx")
+week1 <- subset(week1, select = c('Tm','G','W-L%','PF','PA','PD','TD...16','Int','Rate','TD...24','Y/P','DY/P','TD...43','TD...51','TO...60'))
+week1 <- week1 %>%
+  rename(PTD='TD...16',RTD='TD...24',TDF='TD...43',TDA='TD...51',TOM='TO...60')
+week2 <- read_excel("/Users/rossbechtel/Desktop/week2.xlsx")
+week2 <- subset(week2, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week2 <- week2 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+week3 <- read_excel("/Users/rossbechtel/Desktop/week3.xlsx")
+week3 <- subset(week3, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week3 <- week3 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+week4 <- read_excel("/Users/rossbechtel/Desktop/week4.xlsx")
+week4 <- subset(week4, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week4 <- week4 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+week5 <- read_excel("/Users/rossbechtel/Desktop/week5.xlsx")
+week5 <- subset(week5, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week5 <- week5 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+week6 <- read_excel("/Users/rossbechtel/Desktop/week6.xlsx")
+week6 <- subset(week6, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week6 <- week6 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+week7 <- read_excel("/Users/rossbechtel/Desktop/week7.xlsx")
+week7 <- subset(week7, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week7 <- week7 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+week8 <- read_excel("/Users/rossbechtel/Desktop/week8.xlsx")
+week8 <- subset(week8, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week8 <- week8 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+week9 <- read_excel("/Users/rossbechtel/Desktop/week9.xlsx")
+week9 <- subset(week9, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week9 <- week9 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+week10 <- read_excel("/Users/rossbechtel/Desktop/week10.xlsx")
+week10 <- subset(week10, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week10<- week10 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+week11 <- read_excel("/Users/rossbechtel/Desktop/week11.xlsx")
+week11 <- subset(week11, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week11 <- week11 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+week12 <- read_excel("/Users/rossbechtel/Desktop/week12.xlsx")
+week12 <- subset(week12, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week12 <- week12 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+week13 <- read_excel("/Users/rossbechtel/Desktop/week13.xlsx")
+week13 <- subset(week13, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week13 <- week13 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+week14 <- read_excel("/Users/rossbechtel/Desktop/week14.xlsx")
+week14 <- subset(week14, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week14 <- week14 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+week15 <- read_excel("/Users/rossbechtel/Desktop/week15.xlsx")
+week15 <- subset(week15, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week15 <- week15 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+week16 <- read_excel("/Users/rossbechtel/Desktop/week16.xlsx")
+week16 <- subset(week16, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week16 <- week16 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+week17 <- read_excel("/Users/rossbechtel/Desktop/week17.xlsx")
+week17 <- subset(week17, select = c('Tm','G','W-L%','PF','PA','PD','TD...17','Int','Rate','TD...25','Y/P','DY/P','TD...44','TD...52','TO...61'))
+week17 <- week17 %>%
+  rename(PTD='TD...17',RTD='TD...25',TDF='TD...44',TDA='TD...52',TOM='TO...61')
+```
+
+Let's first explore the odds data:
+```{r, warning=FALSE, message=FALSE}
+# Create column for favorite or underdog
+odds$wasFav <- ifelse(odds$ML < 0, 1, 0)
+# Calculate implied odds
+odds$implied <- ifelse(odds$wasFav == 1,
+                       -odds$ML / (-odds$ML + 100),
+                       100 / (odds$ML + 100))
+
+# Get average implied odds by team
+avgs <- odds %>%
+  group_by(Team) %>%
+  summarise(avg_implied = mean(implied))
+avgs$color <- ifelse(avgs$avg_implied >= 0.5, 'blue', 'red')
+
+ggplot(avgs, aes(reorder(Team, avg_implied), avg_implied, fill=color)) +
+  geom_col() +
+  coord_flip() +
+  labs(y="Average Implied Probability", x="Team") +
+  ggtitle("Average Implied Probability by Team 2020-21 NFL Season") +
+  theme(legend.position = 'none')
+```
+This plot shows that the oddsmakers tended to favor the Kansas City Chiefs, Baltimore Ravens, and New Orleans Saints the most. It also shows that the oddsmakers tended to believe the least in the New York Jets, Jacksonville Jaguars, and Cincinnati Bengals. So, what did the Chiefs, Ravens and Saints do right? And, what did the Jets, Jaguars and Bengals do wrong? 
+
+Let's take a look at the end of the season stats for these teams:
+```{r, warning=FALSE, message=FALSE}
+# Get best and worst teams oonly
+bestAndWorst <- subset(week17,
+                       week17$Tm %in% c('KAN','BAL','NOR','CIN','JAX','NYJ'))
+bestAndWorst$color <- c('Best','Best','Best','Worst','Worst','Worst')
+
+ggplot(bestAndWorst, aes(reorder(Tm, Rate), Rate, fill=color)) +
+  geom_col() +
+  labs(x="Team",y="QBR") +
+  theme(legend.position = 'none') +
+  ggtitle("Quarterback Rating per Team over 2020-2021 Season")
+```
+Quarterback rating (QBR) is a measure of how good a quarterback is. It is an all inclusive stat that accounts for traditional quarterback stats like touchdowns, completion %, total yards, and interceptions. The QB is the most important player on any NFL team and makes the most difference out of any other player. So, it would make sense that a team with a good QBR would have better odds than a team with a low QBR. This plot definitely seems to agree with that, showing how the top three favored teams all had higher QBRs than the bottom three.
+
+Returning to the odds data, let's look at weekly changes in odds for a single team - The New Orleans Saints (my favorite team):
+```{r, warning=FALSE, message=FALSE}
+# Subset for Saints and summarise
+saintsOdds <- subset(odds, odds$Team == 'NOR')
+saintsOdds$game <- seq(1:length(saintsOdds$Date))
+saintsOddsSum <- saintsOdds %>%
+  group_by(VH) %>%
+  summarise(odds=mean(implied))
+
+ggplot(saintsOdds, aes(game, implied, fill=VH)) +
+  geom_col() +
+  labs(x="Game #", y="Implied Odds") +
+  ggtitle("New Orleans Saints Odds by Game") +
+  scale_fill_discrete(name="",
+                      labels=c(paste0("Home (Avg: ",
+                                      round(saintsOddsSum[1,2],
+                                            4),")"),
+                               paste0("Away (Avg: ",
+                                      round(saintsOddsSum[2,2],
+                                            4),")")))
+```
+Home field advantage is a common effect that many believe exist in all sports. What do the oddsmakers have to say about this? In the 2020-2021 season, the Saints were given more favorable odds than when they played at home than they did when they played on the road. The difference in the average implied odds is about .02. This value is also skewed due to the fact that when the Saints visited the Denver Broncos in their 11th game of the season, the Broncos were without their top 3 QB options. Removing that outlier yields the following plot:
+```{r, warning=FALSE, message=FALSE}
+# Remove week 11 and make same plot
+saintsOddsSum <- saintsOdds[-11,] %>%
+  group_by(VH) %>%
+  summarise(odds=mean(implied))
+ggplot(saintsOdds[-11,], aes(game, implied, fill=VH)) +
+  geom_col() +
+  labs(x="Game #", y="Implied Odds") +
+  ggtitle("New Orleans Saints Odds by Game") +
+  scale_fill_discrete(name="",
+                      labels=c(paste0("Home (Avg: ",
+                                      round(saintsOddsSum[1,2],
+                                            4),")"),
+                               paste0("Away (Avg: ",
+                                      round(saintsOddsSum[2,2],
+                                            4),")")))
+```
+Now, the difference in average implied odds is about 0.055, which seems significant.
+```{r, warning=FALSE, message=FALSE}
+# Remove week 1 as their is no previous week and remove playoffs
+saintsOddsReg <- saintsOdds[-c(1,17,18),]
+saintsOddsReg$prevWeek <- c('W','L','L','W','W','W','W','W',
+                            'W','W','W','W','L','L','W')
+ggplot(saintsOddsReg, aes(game, implied, fill=prevWeek)) +
+  geom_col() + 
+  labs(x="Game",y="Implied Odds") +
+  ggtitle("New Orleans Saints Odds by Game") +
+  scale_fill_discrete(name="Previous Game Result",labels=c("Loss","Win"))
+```
+The ability of a football team changes throughout a given season. For this reason, recent results are important in determining how good a team is at a certain point in time. The above plot is colored by the previous game's result. The Saints saw a decrease in odds in 3/4 of the games they played following a loss. Although the Saints did not lose many games, this seems to suggest that oddsmakers do care about what a team has done recently.
+```{r, warning=FALSE, message=FALSE}
+ggplot(bestAndWorst, aes(reorder(Tm, `Y/P`), `Y/P`, fill=color)) +
+  geom_col() +
+  labs(x="Team",y="Offensive YPA") +
+  theme(legend.position = 'none') +
+  ggtitle("Offensive Yards per Attempt over 2020-2021 Season")
+```
+A football team is still a team. There is no one player who can singlehandly win a game or define the odds. The offensive ability of an entire team must be considered when determining a teams chances to win a game. The above plot suggests that oddsmakers would agree.
+```{r, warning=FALSE, message=FALSE}
+ggplot(bestAndWorst, aes(reorder(Tm, `DY/P`), `DY/P`, fill=color)) +
+  geom_col() +
+  labs(x="Team",y="Defensive YPA") +
+  theme(legend.position = 'none') +
+  ggtitle("Defensive Yards per Attempt over 2020-2021 Season")
+```
+
+Similarly, a team's defensive ability must be considered. Oddsmakers appear to agree in this case too.
+
+# Data Analysis
+There are two approaches I want to take when it comes to the linear analysis of this data. First, I want to use what I believe to be important in determining odds as the independent variables. These variables come from my own knowledge as a football fan and the relationships recognized during the previous section. I also want to use AIC to find the "best" model under the AIC criteria. 
+
+To start with my first approach, I chose to look at week 3 data. Week 3 was a good week in the NFL because each team played in that week and in the previous week. There are many weeks where some teams did not play due to covid issues or bye weeks.
+```{r}
+# Get rid of unneccesary columns
+week3odds <- subset(odds, odds$week == 3,
+                    select = c('Team','implied','VH'))
+# Merged odds and stats
+week3merged <- merge(week3odds, week2, by.x='Team', by.y='Tm')
+# Create dummys for home team and a win in previous week
+week3merged$homeaway <- ifelse(week3merged$VH == 'H', 1, 0)
+week3merged$prevWin <- c(1,0,1,1,0,1,0,1,1,0,
+                         0,1,0,1,0,1,0,1,1,0,
+                         0,0,0,0,0,0,1,1,1,1,
+                         1,0)
+```
+The first model I decided on was an MLR that used Quarterback Rating and two dummy variables. The dummys were encoded as 1 if the team was the home team for the first dummy and as 1 if the team won their last game for the second dummy.
+```{r, warning=FALSE, message=FALSE}
+week3mod1 <- lm(implied~Rate+homeaway+prevWin,data=week3merged)
+summary(week3mod1)
+plot(week3mod1, which=c(1,2))
+```
+
+Surprisingly, in this model, QBR was not statistically significant. However, the two dummys both were significant at the 0.01 level. The $\beta$ estimate for home/away was 0.247 meaning that holding other variables constant, you would expect an increase in implied odds by 0.247 when a team is at home vs. when they are on the road. The $\beta$ estimate for a win in the previos week was 0.167, meaning that holding other variables constant, you would expect an increase in implied odds by 0.167 when a team has won its previous game vs. when it did not. This effect is less than the home/away effect but still significant.
+
+The diagnostic plots for this model look good. The residuals vs. fitted line is close to horizontal and the points follow the Normal Q-Q plot closely, indicating that a linear relationship is present.
+
+The second model I tried was one that took into account a teams offensive ability (Yards per play) and defensive ability (Defensive yards per play). This made sense because they were on the same scale.
+```{r}
+week3mod2 <- lm(implied~`Y/P`+`DY/P`,data=week3merged)
+summary(week3mod2)
+plot(week3mod2, which=c(1,2))
+```
+
+In this model, both variables were statistically significant at the 0.05 level. The $\beta$ estimate for OY/P indicates that for each extra yard an offense gains per play, you would expect their implied odds to increase by 0.101 when not considering their defense. The $\beta$ estimate for DY/P indicates that for each extra yard an defense gives up per play, you would expect their implied odds to decrease by 0.112 when not considering their offense. Both of these varaibles appear to lead to big swings in implied odds.
+
+Though they are not as strong as the previous model, the diagnostic plots for this model look good. The residuals vs. fitted line is close to horizontal and the points follow the Normal Q-Q plot closely, indicating that a linear relationship is present.
+
+We can use this model to try to predict what the implied odds would look like for a superteam (one that gains 7 yards per play and gives up only 4) and for a bad team (one with the opposite stats).
+```{r}
+# Prediction interval for a superteam
+predict(week3mod2, newdata=data.frame('Y/P' = 7,'DY/P'= 4, check.names = F),
+        interval = 'prediction')
+# Prediction interval for a bad team
+predict(week3mod2, newdata=data.frame('Y/P' = 4,'DY/P'= 7, check.names = F),
+        interval = 'prediction')
+```
+The superteam's prediction interval is centered around 0.8397 and goes over 1 in its upper bound, suggesting that a team with these stats would be a given insanely high odds. The bad team's prediction interval is centered around 0.1996 and goes below 1 in its lower bound, suggesting that a team this bad would be given an abysmal chance to win.
+
+Now, let's see what AIC would have selected:
+```{r}
+# Remove some colinear (Ex: Pts For, Pts Against vs. Pt Diff) 
+# and non-useful columns (Ex: Week, Team)
+week3useful <- subset(week3merged, select = -c(1,3,4,6,7,10,15,16))
+
+# Step forward
+noVars <- lm(implied~1, data=week3useful)
+allVars <- lm(implied~., data=week3useful)
+step(noVars, scope=list(lower = noVars, upper=allVars), direction = "forward")
+```
+Stepping forward with AIC shows that AIC is minimized with the home/away dummy and the previous win dummy. The coefficients for this model show that given when holding the previous week win variable constant, being the home team, you would exepct to upgrade a team's implied odds by 0.2426. They also show that holding the home/away variable constant, when winning in the previous week, you would expect a team's implied odds to increase by 0.1411. This is very similar to the first model I proposed, which has the same significant variables as AIC's model. 
+```{r}
+confint(lm(implied~homeaway+prevWin, data=week3useful))
+```
+The confidence interval for this model shows that it would be reasonable for the effect of being the home team on implied odds to be anywhere between 0.1487 and 0.3364. This upper bound is very impactful, suggesting that oddsmakers definitely believe in home field advantage. The confidence interval for the previous win variable shows that it would be reasonable for the effect of winning your last game to be anywhere between 0.0473 and 0.2350. If the lower bound were true, this effect would be marginal.
+
+# Summary and Discussion
+There are many takeaways from thislinear regression analysis. Firstly, one of my most confident predictions was that a team's quarterback rating was going to make a significant linear impact on a team's implied odds. The regression analysis said otherwise and completely rejected my hypothesis. I was not all wrong though. I had a feeling that recent results and home field advantage played a measurable role in the odds determined by oddsmakers. This was proven to be true by my predicted model and the model produced by stepping forward with AIC. The optimal model produced by AIC did vary from my second predicted model which showed statistical significance in offensive yards per play and defensive yards per play. This suggests that those two stats may not be as impactful as I thought but does not confirm it. One of the main limitations of this analysis was inability to consider who a team was playing as a part of the model. Due to limitations in the data that I could find, it was hard to match up each team's opponent. Given more time and better data, I think the stats of a team's opponent would have some sort of significance in that team's implied odds. Another limitation is the lack of data that I had to do my analysis compared to what oddsmakers most likely use. I believe that oddsmakers have supercomputers that run much more sofisticated models than I could possibly create with my data. Future research should compile more data than I was able to in order to gain more insight on what oddsmakers are using to make their NFL picks.
+
+# References
+* https://www.sportsbookreviewsonline.com/scoresoddsarchives/nfl/nfloddsarchives.htm for odds data
+* https://www.pro-football-reference.com for weekly stats
+
+# Data and Code
+All data and code can be found at https://github.com/RossBechtel/STAT410FinalProject
